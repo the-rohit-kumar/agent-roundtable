@@ -1,0 +1,89 @@
+schema_version: 1
+bogus_key: true
+
+app:
+  name: Agent Roundtable
+  timezone: Asia/Kolkata
+  data_dir: "%LOCALAPPDATA%/AgentRoundtable"
+  single_instance: true
+  startup_mode: manual   # set to windows_logon after Milestone 8 startup install
+
+discord:
+  guild_id: null            # SET_DURING_SETUP (owner manual step, Milestone 2)
+  owner_user_ids: []        # Discord user IDs with Owner permissions
+  friend_role_ids: []       # Discord role IDs with Friend (discussion-only) permissions
+  channels:
+    open_room: null         # friend-visible
+    decisions: null         # sanitized final decisions; friend-visible optional
+    owner_operations: null  # owner-only
+    research: null          # owner-only
+    code_reviews: null      # owner-only
+    agent_activity: null    # owner-only
+  credential_name: "AgentRoundtable.DiscordBotToken"  # token lives in Windows Credential Manager
+
+agents:
+  codex:
+    enabled: true
+    executable: "codex"
+    persona_file: "prompts/codex_architect.md"
+    default_timeout_seconds: 600
+    discussion_profile: read_only
+    project_read_profile: read_only
+    project_write_profile: sandboxed_write   # active only after sandbox canary passes
+  antigravity:
+    enabled: true   # effective state stays DISABLED/SANDBOX_UNVERIFIED until CLI + canary verified
+    executable: "agy"
+    persona_file: "prompts/antigravity_engineer.md"
+    default_timeout_seconds: 600
+    discussion_profile: read_only
+    project_read_profile: read_only
+    project_write_profile: sandboxed_write
+
+autonomy:
+  supported_triggers_enabled: true
+  agent_initiated_discussions: true
+  agent_discovery_events: true
+  configured_schedules: []
+  max_active_discussions: 2
+  max_processes_per_agent: 1
+  max_write_tasks_per_project: 1
+  duplicate_event_window_minutes: 30
+  max_turns_per_discussion_cycle: 6
+  retry_auth_failure: false
+  retry_quota_failure: false
+
+execution:
+  worktree_root: "%LOCALAPPDATA%/AgentRoundtable/worktrees"
+  auto_run_project_allowlisted_tests: true
+  auto_create_local_commit: true
+  auto_push: false
+  auto_publish_pull_request: false
+  auto_merge: false
+  require_owner_approval_for:
+    - git_push
+    - pull_request_publish
+    - protected_branch_merge
+    - dependency_install
+    - external_network_command
+    - destructive_filesystem_action
+    - production_deployment
+  forbidden:
+    - credential_access
+    - original_checkout_modification
+    - unrestricted_permission_bypass
+    - unrelated_directory_access
+
+memory:
+  retention: forever               # LOCKED DECISION: no TTL, ever
+  private_memory_separation: true
+  shared_memory_promotion: owner_approval
+  preserve_disagreements: true
+  automatic_ttl_cleanup: false
+  backups_enabled: true
+  backup_retention: forever
+
+observability:
+  log_level: INFO
+  redact_secrets: true
+  retain_operational_history: forever
+  low_disk_space_threshold_gb: 5
