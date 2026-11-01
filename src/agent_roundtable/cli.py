@@ -231,6 +231,81 @@ def _command_doctor(config: AppConfig | None) -> int:
     return _EXIT_OK if not failing else _EXIT_DEGRADED
 
 
+def _command_secrets(config: AppConfig, action: str, name: str) -> int:
+    from agent_roundtable.secrets.store import resolve_store
+
+    store = resolve_store()
+    credential_name = config.discord.credential_name
+    if name == "discord-token" and credential_name is None:
+        print("error: discord.credential_name is not set in config")
+        return _EXIT_ERROR
+    try:
+        if action == "set":
+            import getpass
+
+            value = getpass.getpass(
+                f"Enter secret for '{name}' (credential name '{credential_name}', input hidden): "
+            )
+            if not value.strip():
+                print("error: empty secret rejected")
+                return _EXIT_ERROR
+            store.set(credential_name, value.strip())
+            print(
+                f"SECRETS RESULT: stored '{name}' under '{credential_name}' "
+                f"(existence verified; value never displayed)"
+            )
+            return _EXIT_OK
+        if action == "delete":
+            existed = store.delete(credential_name)
+            print(
+                f"SECRETS RESULT: '{credential_name}' {'deleted' if existed else 'was not present'}"
+            )
+            return _EXIT_OK
+        if action == "status":
+            exists = store.get(credential_name) is not None
+            print(
+                f"SECRETS RESULT: '{credential_name}' {'present' if exists else 'missing'} "
+                "(value not displayed by design)"
+            )
+            return _EXIT_OK
+    except Exception as exc:  # noqa: BLE001 - CLI boundary: report, never echo secret content
+        print(f"error: secrets operation failed: {exc}")
+        return _EXIT_ERROR
+    return _EXIT_ERROR  # pragma: no cover
+
+
+def _command_run(config: AppConfig) -> int:
+    import asyncio
+
+    from agent_roundtable.discord.bot import run_controller_sync
+    from agent_roundtable.lifecycle import AppState, SingleInstanceLock
+    from agent_roundtable.secrets.store import resolve_store
+    from agent_roundtable.services import Services
+
+    try:
+        with SingleInstanceLock():
+            services = Services.build(config)
+            _ensure_data_dirs(config)
+            services.lifecycle.transition(AppState.STARTING)
+
+            async def _prepare() -> None:
+                await services.db.initialize()
+                services.lifecycle.transition(
+                    AppState.READY if config.agents.codex.enabled else AppState.DEGRADED
+                )
+
+            asyncio.run(_prepare())
+            setup_logging(
+                config.resolved_data_dir,
+                config.observability.log_level,
+                config.observability.redact_secrets,
+            )
+            return run_controller_sync(config, services, resolve_store())
+    except OSError as exc:
+        print(f"error: {exc}")
+        return _EXIT_ERROR
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="agent-roundtable",
@@ -247,6 +322,26 @@ def main(argv: list[str] | None = None) -> int:
     subparsers.add_parser(
         "migrate", help="initialize/verify database and seed identities"
     )
+    subparsers.add_parser(
+        "run", help="connect and run the controller (Discord gateway)"
+    )
+
+    secrets_parser = subparsers.add_parser(
+        "secrets", help="manage stored secrets (Windows Credential Manager)"
+    )
+    secrets_sub = secrets_parser.add_subparsers(dest="secrets_command", required=True)
+    secrets_set = secrets_sub.add_parser(
+        "set", help="store a secret (hidden prompt; never echoed)"
+    )
+    secrets_set.add_argument(
+        "name", choices=["discord-token"], help="which secret to set"
+    )
+    secrets_del = secrets_sub.add_parser("delete", help="remove a stored secret")
+    secrets_del.add_argument("name", choices=["discord-token"])
+    secrets_stat = secrets_sub.add_parser(
+        "status", help="existence check only (value never shown)"
+    )
+    secrets_stat.add_argument("name", choices=["discord-token"])
 
     args = parser.parse_args(argv)
 
@@ -277,6 +372,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "migrate":
         assert config is not None
         return _command_migrate(config)
+    if args.command == "secrets":
+        assert config is not None
+        return _command_secrets(config, args.secrets_command, args.name)
+    if args.command == "run":
+        assert config is not None
+        return _command_run(config)
     parser.error(f"unknown command: {args.command}")  # pragma: no cover
     return _EXIT_ERROR  # pragma: no cover
 

@@ -43,11 +43,36 @@ tables + §29.2 indexes); migrations 2+ will carry additive changes if later
 milestones require them — the migration framework (version + SHA-256 checksum,
 tamper detection, FATAL-on-failure) is tested.
 
-## Milestone 2 — Discord bot and role enforcement — next
-Code may be implemented with mock-interaction tests before owner manual setup;
-the real-guild smoke test requires the owner's Discord application/bot (§28.1):
-token into Credential Manager via `secrets set discord-token`, guild/owner/
-friend-role/channel IDs into config.
+## Milestone 2 — Discord bot and role enforcement — PASSED (mocked tests; real-guild smoke blocked on owner)
+
+Evidence commands (all executed this machine, 2026-11-01):
+`uv run pytest -q` → **95 passed** (58 new M2 tests: permission matrix, repos,
+publishers, secrets stores, fake-interaction command flows) ·
+`uv run ruff check src tests` → All checks passed · `uv run ruff format src tests` → clean ·
+`uv run agent-roundtable secrets status discord-token` (with temp config) →
+`'AgentRoundtable.DiscordBotToken' missing (value not displayed by design)` —
+existence-only display verified ·
+Windows Credential Manager backend verified LIVE:
+`set('AgentRoundtable.__probe__') → get() == roundtrip True → delete() True → get() is None`
+
+| Criterion | Status | Evidence |
+|---|---|---|
+| Windows Credential Manager storage, value never displayed | passed | `secrets/store.py` (ctypes advapi32); live probe above; `test_secrets_store.py` round-trips (env/.env stores + win32 backend typing); CLI prints existence only |
+| `/talk` audit + permission gates for both roles, server-side | passed | `test_permissions.py::test_every_owner_command_is_denied_to_friends` (enumerates the FULL owner matrix); every `discord/commands.py` handler calls `PermissionService.authorize_command` then records an audit event via `_begin_interaction` |
+| Audit event every owner command attempt by friend (DENIED) | passed | `test_commands_flow.py::test_friend_denied_every_owner_command_and_audited` — parametrized over all 12 owner commands, each asserted `result=denied, reason_code=owner_only_command` in `audit_events` |
+| Friend scope: `/talk` creates non-project shared conversation | passed | `test_friend_talk_creates_shared_conversation_without_project` — `project_id=NULL`, `visibility=shared`, topic message persisted |
+| `/reply` friend-accessible only | passed | `test_reply_rejected_for_owner_only_conversation` (DENIED + audited `owner_only_conversation`); `test_reply_persists_message_and_updates_status` |
+| `/thread` metadata only, no local paths/prompts/memory | passed | `test_thread_metadata_only_for_visible_conversation`, `test_thread_locked_for_owner_only_conversation` |
+| `/status` friend-safe (connectivity + availability only) | passed | `test_friend_status_leaks_nothing_sensitive` (\\ / C: quota token path checks); owner variant `test_owner_status_shows_state` |
+| Duplicate interaction deliveries are idempotent | passed | `test_duplicate_talk_interaction_is_idempotent` — same interaction id → 1 conversation, "Already processing" response; ledger in `discord_interactions` |
+| Friends never touch projects (§25.3) | passed | `project_id=None` enforced in `handle_talk` for ALL roles by construction; `/talk` has no project parameter (§28.3) |
+| Role semantics: owner by user ID, friends by role, others stripped | passed | `test_permissions.py` (owner+friend role coexistence, prioritized owner resolution, unknown role → NOT_MEMBER) |
+| Offline sync + command registration | in_progress | `discord/bot.py setup_hook` syncs guild-scoped commands (code implemented); network verification requires the owner's Discord application (manual, §28.1) |
+| Real-guild smoke test (§28.1 checklist in docs/setup-discord.md) | blocked | requires owner to create Discord application/bot, store token, fill config IDs — manual owner steps, non-blocking for code work |
+
+**Note:** owner-only command BODIES are placeholders by design (each responds
+"capability arrives in a later milestone" after passing the same authorization +
+audit gate) — no privileged behavior is implemented ahead of its milestone (§36).
 
 ## Milestone 3 — CLI adapters and process supervisor — not_started
 ## Milestone 4 — Shared Roundtable conversations — not_started
