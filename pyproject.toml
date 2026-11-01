@@ -1,0 +1,36 @@
+[build-system]
+requires = ["hatchling>=1.26"]
+build-backend = "hatchling.build"
+
+[project]
+name = "agent-roundtable"
+version = "0.1.0"
+description = "Local-first Windows orchestrator connecting Codex and Antigravity CLI agents through a private Discord server."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+authors = [{ name = "Agent Roundtable Owner" }]
+dependencies = [
+    "discord.py>=2.6,<3.0",
+    "pydantic>=2.11,<3.0",
+    "PyYAML>=6.0,<7.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3",
+    "pytest-asyncio>=1.0",
+    "pytest-timeout>=2.4",
+    "ruff>=0.12",
+]
+
+[project.scripts]
+agent-roundtable = "agent_roundtable.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/agent_roundtable"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+timeout = 120

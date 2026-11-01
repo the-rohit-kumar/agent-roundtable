@@ -1,0 +1,29 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+
+# Virtual environments
+.venv/
+venv/
+
+# Runtime data (never commits: DB, logs, artifacts, backups, worktrees, config)
+*.db
+*.db-wal
+*.db-shm
+.env
+artifacts/
+logs/
+backups/
+data/
+*.sqlite*
+
+# Agent Roundtable runtime layout under LOCALAPPDATA is outside the repo; guard anyway
+%LOCALAPPDATA%/

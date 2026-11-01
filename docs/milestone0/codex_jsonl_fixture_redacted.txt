@@ -1,0 +1,27 @@
+# Redacted Codex JSONL fixture — captured from a live one-shot run on 2026-11-01
+# Command: codex exec --json --sandbox read-only --ephemeral --skip-git-repo-check -C <temp> "<prompt>"
+# Redactions: thread_id (provider session id) replaced; prompt shortened. No credentials appear.
+# NOTE: stderr also contained: "Reading additional input from stdin..." because stdin was piped
+# by the test harness. Adapter consequence: always pass the prompt explicitly (arg or stdin "-"),
+# never leave stdin inherited from a caller that happens to have data.
+
+{"type":"thread.started","thread_id":"REDACTED_THREAD_ID"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"ROUNDTABLE_HEALTHCHECK_OK"}}
+{"type":"turn.completed","usage":{"input_tokens":15653,"cached_input_tokens":12672,"cache_write_input_tokens":0,"output_tokens":12,"reasoning_output_tokens":0}}
+
+# --- Fixture 2: workspace-write canary run (disposable Git worktree) — shows command_execution items ---
+{"type":"thread.started","thread_id":"REDACTED_THREAD_ID_2"}
+{"type":"turn.started"}
+{"type":"item.started","item":{"id":"item_0","type":"command_execution","command":"\"C:\\\\WINDOWS\\\\System32\\\\WindowsPowerShell\\\\v1.0\\\\powershell.exe\" -Command \"Set-Content -LiteralPath canary.txt -Value 'CANARY_OK_AGENT_ROUNDTABLE' -NoNewline\"","aggregated_output":"","exit_code":null,"status":"in_progress"}}
+{"type":"item.completed","item":{"id":"item_0","type":"command_execution","command":"...same command...","aggregated_output":"","exit_code":0,"status":"completed"}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"WRITE_CANARY_DONE"}}
+{"type":"turn.completed","usage":{"input_tokens":31126,"cached_input_tokens":22656,"cache_write_input_tokens":0,"output_tokens":65,"reasoning_output_tokens":0}}
+
+# Parser contract derived from this fixture (fail closed §27.5):
+# - final response = text of the LAST item.completed event whose item.type == "agent_message"
+# - provider session id = thread.started.thread_id
+# - usage = turn.completed.usage
+# - unknown event types -> non-fatal diagnostics
+# - missing agent_message item or malformed JSON line -> status unknown/error, NEVER success
+# - turn.completed alone (no agent message) is NOT a successful run
