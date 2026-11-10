@@ -287,6 +287,57 @@ CREATE INDEX idx_audit_created                 ON audit_events (created_at);
 CREATE INDEX idx_memory_scope                  ON memory_items (scope, project_id);
 """
 
+MIGRATION_0002 = """
+CREATE TABLE conversation_turns (
+    turn_id         TEXT PRIMARY KEY,
+    conversation_id TEXT NOT NULL REFERENCES conversations(conversation_id),
+    turn_index      INTEGER NOT NULL,
+    agent_id        TEXT NOT NULL,
+    run_id          TEXT NOT NULL REFERENCES agent_runs(run_id),
+    trigger_reason  TEXT NOT NULL,
+    decision        TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    UNIQUE (conversation_id, turn_index)
+);
+
+CREATE INDEX idx_conversation_turns_order
+    ON conversation_turns (conversation_id, turn_index);
+"""
+
+MIGRATION_0003 = """
+ALTER TABLE memory_items ADD COLUMN created_by TEXT NOT NULL DEFAULT 'system';
+CREATE TABLE forget_confirmations (
+    confirmation_id TEXT PRIMARY KEY,
+    actor_id TEXT NOT NULL,
+    target_type TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    token_hash TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    used_at TEXT
+);
+CREATE INDEX idx_forget_confirmations_target
+    ON forget_confirmations (actor_id, target_type, target_id, expires_at);
+"""
+
+MIGRATION_0004 = """
+ALTER TABLE tasks ADD COLUMN validation_json TEXT NOT NULL DEFAULT '{}';
+ALTER TABLE tasks ADD COLUMN commit_sha TEXT;
+ALTER TABLE tasks ADD COLUMN failure_code TEXT;
+"""
+
+MIGRATION_0005 = """
+CREATE TABLE controller_state (
+    state_id TEXT PRIMARY KEY CHECK (state_id='singleton'),
+    state TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+);
+"""
+
 MIGRATIONS = [
     (1, "initial_schema", MIGRATION_0001),
+    (2, "conversation_turns", MIGRATION_0002),
+    (3, "memory_forget_confirmations", MIGRATION_0003),
+    (4, "task_validation_evidence", MIGRATION_0004),
+    (5, "controller_restart_tracking", MIGRATION_0005),
 ]

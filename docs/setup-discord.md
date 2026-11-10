@@ -84,6 +84,10 @@ With the bot in the server, run `/status` from the owner account and from a
 friend account: the owner sees full controller state; the friend sees only
 connectivity and availability (enforced server-side, §28.3).
 
+After the manual run succeeds, follow [`operations.md`](operations.md#startup-at-logon)
+to install automatic startup. The controller is local and available only while this
+user is logged in and the computer is awake.
+
 ## Manual checklist (M2 smoke test, §28.3)
 
 - [ ] `/help` as friend lists only friend commands

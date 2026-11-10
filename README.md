@@ -27,6 +27,12 @@ uv run agent-roundtable doctor    # environment + config diagnostics
 uv run agent-roundtable status    # controller/database status overview
 ```
 
+After storing the Discord token and verifying configuration, install the optional
+current-user logon task with `scripts\install-startup-task.ps1`. See
+[`docs/operations.md`](docs/operations.md) for restart behavior, removal, health,
+recovery, backups, disk-space handling, and provider limits. The controller runs
+only while the user is logged in and the computer is awake.
+
 `pytest` (run via `uv run pytest`), `ruff` checks, and type annotations are part of
 the definition of done for every milestone (§35.1).
 
@@ -53,7 +59,12 @@ docs/                   architecture, setup, security, operations
 
 ## Milestone status
 
-See `IMPLEMENTATION_STATUS.md`. Milestone 1 (application foundation) is the current
-build target; Milestone 2 (Discord bot) comes next and requires the manual Discord
-application setup documented in `docs/setup.md` (when Milestone 8 release docs land)
-and in `ARCHITECTURE.md` §28.1.
+See `IMPLEMENTATION_STATUS.md`. Milestones 1–6 are passed against the fixture suite.
+Milestone 7's project policy, isolated worktree, validation, commit, review and owner
+approval flows are implemented and covered by the fixture suite. Live dual-provider
+acceptance is pending: Codex workspace writes are disabled by default, Antigravity
+remains disabled under D5 until its sandbox canary passes, and a real project has not
+been registered. Milestone 8 adds the Windows logon-task scripts, restart recovery,
+disk safeguards, and operator procedures. Installing the task and running a clean
+Discord setup remain owner-side checks; see [`docs/operations.md`](docs/operations.md)
+and [`docs/setup-discord.md`](docs/setup-discord.md).

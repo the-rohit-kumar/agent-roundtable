@@ -132,7 +132,7 @@ class Database:
             conn.execute("BEGIN IMMEDIATE")
             cur = conn.execute(sql, params)
             conn.execute("COMMIT")
-            return cur.lastrowid or 0
+            return cur.rowcount
 
     def _fetch_all_sync(self, sql: str, params: Sequence[Any]) -> list[dict[str, Any]]:
         conn = self._ensure_open()

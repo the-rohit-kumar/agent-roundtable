@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import ctypes
 import sys
+import time
 from enum import StrEnum
 from typing import Self
 
@@ -107,6 +108,12 @@ class AppLifecycle:
     def __init__(self) -> None:
         self._state = AppState.STARTING
         self._provider_states: dict[str, str] = {}
+        self._started_monotonic = time.monotonic()
+        self.discord_connected = False
+
+    @property
+    def uptime_seconds(self) -> int:
+        return max(0, int(time.monotonic() - self._started_monotonic))
 
     @property
     def state(self) -> AppState:
@@ -128,6 +135,11 @@ class AppLifecycle:
             "SANDBOX_UNVERIFIED",
             "UNAVAILABLE",
             "DISABLED",
+            "CLI_MISSING",
+            "AUTH_UNKNOWN",
+            "AUTH_EXPIRED",
+            "CLI_AVAILABLE",
+            "READ_ONLY",
         }
         if state not in allowed:
             raise ValueError(f"Unknown provider state: {state}")

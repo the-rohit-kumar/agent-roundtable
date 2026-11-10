@@ -43,6 +43,11 @@ def owner_status_summary(
     provider_states: dict[str, str],
     active_count: int = 0,
     database_up: bool = True,
+    uptime_seconds: int = 0,
+    disk_free_gb: float | None = None,
+    disk_warning: bool = False,
+    interrupted_tasks: int = 0,
+    queued_tasks: int = 0,
 ) -> str:
     """Owner status shows more detail but still nothing secret-like."""
     providers = (
@@ -52,10 +57,18 @@ def owner_status_summary(
         )
         or "(no providers registered)"
     )
+    disk = (
+        "disk space unavailable"
+        if disk_free_gb is None
+        else f"disk {disk_free_gb:.1f} GiB free"
+        + (" (LOW; project writes paused)" if disk_warning else "")
+    )
+    uptime = f"{uptime_seconds // 3600}h {(uptime_seconds % 3600) // 60}m"
     return (
         f"State: {state}; Discord {'connected' if discord_connected else 'not connected'}; "
-        f"providers: {providers}; active conversations: {active_count}; "
-        f"database: {'healthy' if database_up else 'UNAVAILABLE'}."
+        f"uptime: {uptime}; providers: {providers}; active conversations: {active_count}; "
+        f"database: {'healthy' if database_up else 'UNAVAILABLE'}; {disk}; "
+        f"tasks: {queued_tasks} queued, {interrupted_tasks} interrupted."
     )
 
 

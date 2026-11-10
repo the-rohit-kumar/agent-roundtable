@@ -88,6 +88,7 @@ class AutonomyConfig(_Strict):
 
 class ExecutionConfig(_Strict):
     worktree_root: str = "%LOCALAPPDATA%/AgentRoundtable/worktrees"
+    codex_workspace_write_verified: bool = False
     auto_run_project_allowlisted_tests: bool = True
     auto_create_local_commit: bool = True
     auto_push: bool = False

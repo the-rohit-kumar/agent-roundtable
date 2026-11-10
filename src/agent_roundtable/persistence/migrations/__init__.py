@@ -81,11 +81,13 @@ def apply_migrations_sync(conn: sqlite3.Connection, db_path: Path) -> None:
             )
         try:
             conn.executescript(sql)  # implicit commit boundary per migration
+            checksum = file_checksum(sql)
             conn.execute(
                 "INSERT INTO schema_migrations (version, applied_at, checksum) "
                 "VALUES (?, ?, ?)",
-                (version, utc_now_iso(), file_checksum(sql)),
+                (version, utc_now_iso(), checksum),
             )
+            applied[version] = checksum
         except sqlite3.Error as exc:
             raise MigrationError(
                 f"Migration {version} ({name}) failed on {db_path}: {exc}"

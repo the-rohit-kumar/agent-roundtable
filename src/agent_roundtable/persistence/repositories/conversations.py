@@ -76,6 +76,12 @@ class ConversationRepository:
             (discord_thread_id, utc_now_iso(), str(conversation_id)),
         )
 
+    async def set_trigger_event(self, conversation_id: UUID, event_id: UUID) -> None:
+        await self._db.execute(
+            "UPDATE conversations SET trigger_event_id=?,updated_at=? WHERE conversation_id=?",
+            (str(event_id), utc_now_iso(), str(conversation_id)),
+        )
+
     # --- messages ---------------------------------------------------------
 
     async def append_message(self, message: MessageCreate) -> MessageCreate:
@@ -128,6 +134,14 @@ class ConversationRepository:
             (str(conversation_id),),
         )
         return int(row["n"]) if row else 0
+
+    async def set_message_discord_id(
+        self, message_id: UUID, discord_message_id: str
+    ) -> None:
+        await self._db.execute(
+            "UPDATE messages SET discord_message_id = ? WHERE message_id = ?",
+            (discord_message_id, str(message_id)),
+        )
 
 
 class InteractionRepository:

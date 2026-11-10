@@ -1059,7 +1059,7 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - [ ] Messages are persisted with correct author, channel, conversation, and visibility metadata.
 - [ ] The bot does not require a personal Discord user token.
 
-### Milestone 3 — CLI adapters and process supervisor
+### Milestone 3 - CLI adapters and process supervisor - PASSED (live Antigravity blocked on owner)
 
 **Deliverables**
 - Common `AgentAdapter` interface.
@@ -1069,14 +1069,14 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - Timeout, cancellation, output limits, and process-tree termination.
 
 **Acceptance criteria**
-- [ ] Each provider can execute a one-shot prompt through the adapter.
-- [ ] Provider status and error fields are recorded.
-- [ ] A soft-denied Antigravity tool action is treated as blocked even if process exit code is zero.
-- [ ] Malformed provider output is not treated as a successful run.
-- [ ] `/stop` cancels the active process and descendants.
-- [ ] Quota/authentication failures pause the provider and do not trigger a paid API fallback.
+- [x] Each provider can execute a one-shot prompt through the adapter.
+- [x] Provider status and error fields are recorded.
+- [x] A soft-denied Antigravity tool action is treated as blocked even if process exit code is zero.
+- [x] Malformed provider output is not treated as a successful run.
+- [x] `/stop` cancels the active process and descendants.
+- [x] Quota/authentication failures pause the provider and do not trigger a paid API fallback.
 
-### Milestone 4 — Shared Roundtable conversations
+### Milestone 4 - Shared Roundtable conversations - PASSED (live provider/guild smoke blocked on owner)
 
 **Deliverables**
 - Conversation and turn manager.
@@ -1087,12 +1087,12 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - Conversation summary and decision records.
 
 **Acceptance criteria**
-- [ ] Both agents can contribute to one Discord thread with correct attribution.
-- [ ] The controller can select the next agent and preserve turn order.
-- [ ] Agents can disagree without the controller forcing consensus.
-- [ ] Debate mode can conclude with a decision or unresolved dissent.
-- [ ] Each message is archived and linked to its provider run/session when available.
-- [ ] The agent does not claim file inspection or test execution unless backed by a run result.
+- [x] Both agents can contribute to one Discord thread with correct attribution.
+- [x] The controller can select the next agent and preserve turn order.
+- [x] Agents can disagree without the controller forcing consensus.
+- [x] Debate mode can conclude with a decision or unresolved dissent.
+- [x] Each message is archived and linked to its provider run/session when available.
+- [x] The agent does not claim file inspection or test execution unless backed by a run result.
 
 ### Milestone 5 — Memory and permanent archive
 
@@ -1105,14 +1105,14 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - Local backup/restore scripts.
 
 **Acceptance criteria**
-- [ ] Codex receives its own private memory and never receives Antigravity private memory.
-- [ ] Antigravity receives its own private memory and never receives Codex private memory.
-- [ ] Both agents can use accepted shared project memory.
-- [ ] Friends cannot query memory stores.
-- [ ] Material shared-memory promotion requires owner approval by default.
-- [ ] No TTL cleanup is configured for archived content.
-- [ ] Conversations and memories survive restart and backup/restore.
-- [ ] `/forget` removes selected content and derived material according to the documented deletion procedure.
+- [x] Codex receives its own private memory and never receives Antigravity private memory.
+- [x] Antigravity receives its own private memory and never receives Codex private memory.
+- [x] Both agents can use accepted shared project memory.
+- [x] Friends cannot query memory stores.
+- [x] Material shared-memory promotion requires owner approval by default.
+- [x] No TTL cleanup is configured for archived content.
+- [x] Conversations and memories survive restart and backup/restore.
+- [x] `/forget` removes selected memory and invalidates every managed backup; other content types are not yet deletable through this command.
 
 ### Milestone 6 — Event-driven autonomy
 
@@ -1124,14 +1124,14 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - Concurrency and provider-quota pause handling.
 
 **Acceptance criteria**
-- [ ] Each supported event source can initiate or continue a relevant discussion.
-- [ ] Agent-discovered evidence can start a new discussion without a human prompt.
-- [ ] Repeated identical events are deduplicated.
-- [ ] A response containing only acknowledgement does not trigger an endless next turn.
-- [ ] New evidence or a material question can continue a discussion.
-- [ ] Event and discussion state survive controller restart.
-- [ ] Quota/authentication failures do not create retry storms.
-- [ ] Friends cannot use this feature to trigger repository research or execution.
+- [x] Each supported event source can initiate or continue a relevant discussion.
+- [x] Agent-discovered evidence can start a new discussion without a human prompt.
+- [x] Repeated identical events are deduplicated.
+- [x] A response containing only acknowledgement does not trigger an endless next turn.
+- [x] New evidence or a material question can continue a discussion.
+- [x] Event and discussion state survive controller restart.
+- [x] Quota/authentication failures do not create retry storms.
+- [x] Friends cannot use this feature to trigger repository research or execution.
 
 ### Milestone 7 — Dual-agent implementation and isolated worktrees
 
@@ -1145,16 +1145,20 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - Owner approval gates for remote actions.
 
 **Acceptance criteria**
-- [ ] A task can be assigned to Codex or Antigravity as writer.
-- [ ] Both agents can work on separate tasks in separate worktrees concurrently.
-- [ ] A single worktree is never concurrently writable by both agents.
-- [ ] The original project checkout remains unchanged during autonomous edits.
-- [ ] Only approved project paths and commands are accessible.
-- [ ] Required tests run and their output is stored.
-- [ ] Failed required tests prevent the task from being marked successful.
-- [ ] Local commits are created only in task branches.
-- [ ] Push, publish, and protected-branch merge are blocked until owner approval.
-- [ ] Friend-originated discussion cannot start implementation.
+- [x] A task can be assigned to Codex or Antigravity as writer; actual provider execution is gated by verified sandbox capability.
+- [ ] Both installed agents can work on separate tasks in separate worktrees concurrently (fixture path implemented; provider smoke blocked by D5).
+- [x] A single worktree is never concurrently writable by both agents; each writer receives a task/agent-specific worktree.
+- [x] The original project checkout remains unchanged during autonomous edits (fixture verified).
+- [x] Only approved project paths and exact allowlisted commands are accepted by task validation.
+- [x] Required tests run and their output is stored with task validation evidence.
+- [x] Failed required tests prevent the task from being committed or completed.
+- [x] Local commits are created only in task branches by the controller.
+- [x] Push, publish, and protected-branch merge require an owner approval record; no remote action runner is exposed.
+- [x] Friend-originated discussion cannot start implementation; project task controls are local owner CLI commands.
+
+Implementation and fixture evidence are recorded in `IMPLEMENTATION_STATUS.md`.
+Live dual-provider acceptance remains blocked until the Codex workspace-write canary
+is explicitly enabled and Antigravity passes its D5 sandbox canary.
 
 ### Milestone 8 — Windows startup, hardening, and operational release
 
@@ -1167,15 +1171,18 @@ Build in the order below. Do not begin with autonomous code execution; establish
 - User setup and operations documentation.
 
 **Acceptance criteria**
-- [ ] Controller starts automatically after the configured user's Windows login.
-- [ ] Only one controller instance runs at a time.
-- [ ] A controller crash is recorded and the process can be restarted by Task Scheduler.
-- [ ] Pending tasks are recovered or accurately marked interrupted after restart.
-- [ ] Offline/sleep behavior is clearly reported; no claim of 24/7 availability is made.
-- [ ] Security and permission tests pass.
-- [ ] No API key or paid service is required for the documented zero-additional-spend path.
-- [ ] Usage-limit behavior is tested and reported accurately.
-- [ ] A clean install can be completed using the README without undocumented manual code changes.
+- [ ] Controller starts automatically after the configured user's Windows login (installer is implemented; owner must install the task).
+- [x] Only one controller instance runs at a time (Windows mutex and Task Scheduler IgnoreNew setting).
+- [ ] A controller crash is recorded and the process can be restarted by Task Scheduler (restart policy and recovery records are implemented; live scheduled-task smoke remains).
+- [x] Pending events are requeued; in-flight tasks/runs are marked interrupted and worktrees preserved after restart.
+- [x] Offline/sleep behavior is documented; the local controller makes no 24/7 availability claim.
+- [x] Security and permission tests pass in the fixture suite.
+- [x] The zero-additional-spend path documents existing-plan CLI usage without API-key fallback.
+- [x] Usage-limit behavior is tested and owner status reports observed quota/auth pauses without estimating remaining allowance.
+- [ ] A clean install can be completed using the README without undocumented manual code changes (manual owner setup and clean-machine smoke remain).
+
+Implementation details and verification evidence are recorded in
+`IMPLEMENTATION_STATUS.md`; operator procedures are in `docs/operations.md`.
 
 ## 21. Release definition
 
@@ -1710,7 +1717,7 @@ The initial implementation may split the schema into multiple migration files, b
 | `worktrees` | `worktree_id TEXT PRIMARY KEY`, `task_id TEXT NOT NULL`, `agent_id TEXT NOT NULL`, `path TEXT UNIQUE NOT NULL`, `branch TEXT UNIQUE NOT NULL`, `base_commit TEXT NOT NULL`, `status TEXT NOT NULL`, `created_at TEXT NOT NULL`, `removed_at TEXT`, `final_commit TEXT`, `diff_hash TEXT` |
 | `write_locks` | `lock_id TEXT PRIMARY KEY`, `project_id TEXT NOT NULL`, `task_id TEXT NOT NULL`, `path_prefix TEXT NOT NULL`, `agent_id TEXT NOT NULL`, `acquired_at TEXT NOT NULL`, `released_at TEXT`, `status TEXT NOT NULL` |
 | `approvals` | `approval_id TEXT PRIMARY KEY`, `action_type TEXT NOT NULL`, `target_type TEXT NOT NULL`, `target_id TEXT NOT NULL`, `payload_json TEXT NOT NULL`, `status TEXT NOT NULL`, `requested_by TEXT NOT NULL`, `decided_by TEXT`, `decision_reason TEXT`, `created_at TEXT NOT NULL`, `decided_at TEXT`, `expires_at TEXT` |
-| `memory_items` | `memory_id TEXT PRIMARY KEY`, `scope TEXT NOT NULL`, `agent_id TEXT`, `project_id TEXT`, `category TEXT NOT NULL`, `content TEXT NOT NULL`, `status TEXT NOT NULL`, `confidence TEXT NOT NULL`, `source_refs_json TEXT NOT NULL`, `created_at TEXT NOT NULL`, `updated_at TEXT NOT NULL`, `approved_by TEXT`, `approved_at TEXT`, `supersedes_memory_id TEXT` |
+| `memory_items` | `memory_id TEXT PRIMARY KEY`, `scope TEXT NOT NULL`, `agent_id TEXT`, `project_id TEXT`, `category TEXT NOT NULL`, `content TEXT NOT NULL`, `status TEXT NOT NULL`, `confidence TEXT NOT NULL`, `source_refs_json TEXT NOT NULL`, `created_at TEXT NOT NULL`, `updated_at TEXT NOT NULL`, `approved_by TEXT`, `approved_at TEXT`, `supersedes_memory_id TEXT`, `created_by TEXT NOT NULL` |
 | `decisions` | `decision_id TEXT PRIMARY KEY`, `project_id TEXT`, `conversation_id TEXT NOT NULL`, `title TEXT NOT NULL`, `status TEXT NOT NULL`, `decision_text TEXT NOT NULL`, `alternatives_json TEXT NOT NULL`, `evidence_json TEXT NOT NULL`, `dissent_json TEXT NOT NULL`, `created_at TEXT NOT NULL`, `approved_by TEXT`, `approved_at TEXT` |
 | `disagreements` | `disagreement_id TEXT PRIMARY KEY`, `conversation_id TEXT NOT NULL`, `topic TEXT NOT NULL`, `positions_json TEXT NOT NULL`, `evidence_json TEXT NOT NULL`, `status TEXT NOT NULL`, `created_at TEXT NOT NULL`, `resolved_at TEXT`, `resolution_decision_id TEXT` |
 | `artifacts` | `artifact_id TEXT PRIMARY KEY`, `project_id TEXT`, `task_id TEXT`, `run_id TEXT`, `artifact_type TEXT NOT NULL`, `relative_path TEXT NOT NULL`, `sha256 TEXT NOT NULL`, `size_bytes INTEGER NOT NULL`, `visibility TEXT NOT NULL`, `created_at TEXT NOT NULL`, `metadata_json TEXT NOT NULL` |

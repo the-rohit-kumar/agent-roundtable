@@ -7,10 +7,11 @@ infrastructure imports so the domain layer stays serializable and testable.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Literal
+from pathlib import Path
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 def new_id() -> UUID:
@@ -208,3 +209,99 @@ class AgentCapabilities(_Domain):
     stateful_resume_supported: bool = False
     structured_output_supported: bool = False
     notes: str | None = None
+
+
+_AGENT_SLUG = Literal["codex", "antigravity"]
+_PERMISSION_PROFILE = Literal["discussion", "read_only", "sandboxed_write"]
+
+#: §27.8: conservative process-level prompt caps (policy text must never be
+#: truncated by the adapter; over-long prompts are rejected, context assembly
+#: truncates earlier — M4 context builder).
+
+
+class AgentRequest(_Domain):
+    """Validated request per run (§27.1). Built by the controller, never
+    directly from friend text as a system prompt."""
+
+    run_id: UUID = Field(default_factory=new_id)
+    agent_id: _AGENT_SLUG
+    purpose: RunPurpose
+    conversation_id: UUID | None = None
+    task_id: UUID | None = None
+    project_id: UUID | None = None
+    working_directory: str | None = None
+    permission_profile: _PERMISSION_PROFILE
+    prompt: str
+    timeout_seconds: int = Field(default=600, ge=5, le=7200)
+    max_stdout_bytes: int = Field(default=2_000_000, gt=0)
+    max_stderr_bytes: int = Field(default=1_000_000, gt=0)
+    provider_session_id: str | None = None
+    correlation_id: UUID = Field(default_factory=new_id)
+
+    @model_validator(mode="after")
+    def _enforce_request_invariants(self) -> AgentRequest:
+        if self.purpose is RunPurpose.DISCUSSION:
+            if (
+                self.project_id is not None
+                or self.task_id is not None
+                or self.working_directory is not None
+            ):
+                raise ValueError(
+                    "discussion purpose must not have project, task, or working directory (§27.1)"
+                )
+            if self.permission_profile != "discussion":
+                raise ValueError(
+                    "discussion purpose requires permission_profile=discussion"
+                )
+        if self.purpose is RunPurpose.IMPLEMENTATION and not (
+            self.task_id and self.project_id and self.working_directory
+        ):
+            raise ValueError(
+                "implementation purpose requires task, project, and controller-created worktree (§27.1)"
+            )
+        if (
+            self.working_directory is not None
+            and not Path(self.working_directory).is_absolute()
+        ):
+            raise ValueError("working_directory must be an absolute canonical path")
+        return self
+
+
+class AgentRunResult(_Domain):
+    """One normalized result per run (§27.2). Never assume exit 0 = success."""
+
+    run_id: UUID
+    agent_id: str
+    status: AgentRunStatus
+    response_text: str | None = None
+    provider_session_id: str | None = None
+    provider_status: str | None = None
+    exit_code: int | None = None
+    started_at: str = Field(default_factory=utc_now_iso)
+    finished_at: str = Field(default_factory=utc_now_iso)
+    duration_ms: int = 0
+    usage: dict[str, Any] = Field(default_factory=dict)
+    diagnostics: list[str] = Field(default_factory=list)
+    reason_code: str | None = None
+    command_metadata_json: str = "{}"
+    parser_version: str = "unknown"
+
+
+class AgentHealth(_Domain):
+    agent_id: str
+    state: Literal["READY", "DEGRADED", "DISABLED", "FATAL", "UNKNOWN"]
+    reason_code: str | None = None
+    detail: str | None = None
+
+
+class PromptTooLongError(ValueError):
+    """Raised fail-closed when a provider prompt exceeds its cap (§27.8)."""
+
+
+class RequestPolicyError(ValueError):
+    """Raised when a request violates provider-specific policy (e.g.
+    sandboxed_write on a provider whose sandbox status is unverified)."""
+
+
+class AdapterNotAvailableError(RuntimeError):
+    """Raised when run() is called on a disabled/unavailable adapter."""

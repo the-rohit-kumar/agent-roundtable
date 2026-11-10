@@ -11,6 +11,7 @@ from agent_roundtable.config import (
 )
 from agent_roundtable.discord.publishers import (
     DISCORD_MESSAGE_LIMIT,
+    DiscordStreamSession,
     artifact_reference_text,
     resolve_output_channel,
     split_for_discord,
@@ -139,8 +140,130 @@ def test_owner_status_summary_lists_providers() -> None:
     assert "ready" in text
 
 
+def test_owner_status_reports_disk_and_interrupted_work_without_affecting_friend_view() -> (
+    None
+):
+    owner = owner_status_summary(
+        discord_connected=False,
+        state="degraded",
+        provider_states={"codex": "QUOTA_BLOCKED"},
+        uptime_seconds=3661,
+        disk_free_gb=1.2,
+        disk_warning=True,
+        interrupted_tasks=2,
+        queued_tasks=1,
+    )
+    assert "QUOTA_BLOCKED" in owner
+    assert "LOW" in owner
+    assert "1h 1m" in owner
+    assert "2 interrupted" in owner
+    friend = friend_safe_status(discord_connected=False, discussion_available=False)
+    for private_detail in ("QUOTA", "disk", "interrupted", "C:\\"):
+        assert private_detail not in friend
+
+
 def test_denied_message_mapping() -> None:
     assert "owner" in denied_message("owner_only_command").lower()
     assert "not registered" in denied_message("not_member").lower()
     assert "/help" in denied_message("unknown_command")
     assert denied_message("mystery")  # fallback never empty
+
+
+class _FakeDiscordMessage:
+    def __init__(self, message_id: str, content: str) -> None:
+        self.id = message_id
+        self.content = content
+        self.edits: list[str] = []
+
+    async def edit(self, *, content: str, **kwargs: object) -> None:
+        self.content = content
+        self.edits.append(content)
+
+
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_stream_session_lifecycle() -> None:
+    messages: list[_FakeDiscordMessage] = []
+
+    async def send_msg(content: str) -> _FakeDiscordMessage:
+        msg = _FakeDiscordMessage(f"msg_{len(messages) + 1}", content)
+        messages.append(msg)
+        return msg
+
+    header = "**Codex · Open Room · turn 1**"
+    session = DiscordStreamSession(
+        send_initial=send_msg,
+        header=header,
+        throttle_seconds=0.01,
+        send_followup=send_msg,
+    )
+
+    await session.start()
+    assert len(messages) == 1
+    assert "*thinking...* ✍️" in messages[0].content
+
+    await session.on_delta("Hello ")
+    await session.on_delta("world!")
+    import asyncio
+
+    await asyncio.sleep(0.05)  # allow throttled edit to fire
+
+    assert len(messages[0].edits) >= 1
+    assert "Hello world! ✍️" in messages[0].content
+
+    final_id = await session.finish(f"{header}\nHello world!")
+    assert final_id == "msg_1"
+    assert messages[0].content == f"{header}\nHello world!"
+    assert "✍️" not in messages[0].content
+
+
+@pytest.mark.asyncio
+async def test_stream_session_oversized_splitting() -> None:
+    messages: list[_FakeDiscordMessage] = []
+
+    async def send_msg(content: str) -> _FakeDiscordMessage:
+        msg = _FakeDiscordMessage(f"msg_{len(messages) + 1}", content)
+        messages.append(msg)
+        return msg
+
+    header = "**Codex · Open Room · turn 1**"
+    session = DiscordStreamSession(
+        send_initial=send_msg,
+        header=header,
+        throttle_seconds=0.01,
+        send_followup=send_msg,
+    )
+
+    await session.start()
+    # 3000 chars of text
+    big_text = f"{header}\n" + ("Paragraph " * 300)
+    final_id = await session.finish(big_text)
+
+    assert final_id == "msg_1"
+    assert len(messages) >= 2
+    assert all(len(m.content) <= DISCORD_MESSAGE_LIMIT for m in messages)
+
+
+@pytest.mark.asyncio
+async def test_stream_session_abort() -> None:
+    messages: list[_FakeDiscordMessage] = []
+
+    async def send_msg(content: str) -> _FakeDiscordMessage:
+        msg = _FakeDiscordMessage(f"msg_{len(messages) + 1}", content)
+        messages.append(msg)
+        return msg
+
+    header = "**Codex · Open Room · turn 1**"
+    session = DiscordStreamSession(
+        send_initial=send_msg,
+        header=header,
+        throttle_seconds=0.01,
+        send_followup=send_msg,
+    )
+
+    await session.start()
+    await session.abort("Could not complete response.")
+
+    assert "*Could not complete response.*" in messages[0].content

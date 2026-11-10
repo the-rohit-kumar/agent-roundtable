@@ -53,6 +53,7 @@ autonomy:
 
 execution:
   worktree_root: "%LOCALAPPDATA%/AgentRoundtable/worktrees"
+  codex_workspace_write_verified: false
   auto_run_project_allowlisted_tests: true
   auto_create_local_commit: true
   auto_push: false

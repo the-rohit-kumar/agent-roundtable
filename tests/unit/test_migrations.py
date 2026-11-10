@@ -31,6 +31,8 @@ REQUIRED_TABLES = {
     "audit_events",
     "discord_interactions",
     "backup_runs",
+    "conversation_turns",
+    "forget_confirmations",
     "schema_migrations",
 }
 
@@ -66,9 +68,49 @@ async def test_migration_checksum_recorded(tmp_db: Path) -> None:
     await db.initialize()
     conn = db._conn
     assert conn is not None
-    row = conn.execute("SELECT version, checksum FROM schema_migrations").fetchone()
+    row = conn.execute(
+        "SELECT version, checksum FROM schema_migrations ORDER BY version DESC LIMIT 1"
+    ).fetchone()
     assert row["version"] == MIGRATIONS[-1][0]
     assert row["checksum"] == file_checksum(MIGRATIONS[-1][2])
+    await db.close()
+
+
+async def test_v1_database_upgrades_conversation_turns_without_data_loss(
+    tmp_db: Path,
+) -> None:
+    from agent_roundtable.persistence.migrations import create_schema_migrations_table
+    from agent_roundtable.util import utc_now_iso
+
+    tmp_db.parent.mkdir(parents=True, exist_ok=True)
+    conn = sqlite3.connect(tmp_db)
+    conn.row_factory = sqlite3.Row
+    conn.executescript(MIGRATIONS[0][2])
+    create_schema_migrations_table(conn)
+    conn.execute(
+        "INSERT INTO schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)",
+        (MIGRATIONS[0][0], utc_now_iso(), file_checksum(MIGRATIONS[0][2])),
+    )
+    conn.execute(
+        "INSERT INTO conversations (conversation_id, mode, visibility, origin, status, created_at, updated_at) "
+        "VALUES ('existing', 'open_room', 'shared', 'friend', 'open', 'now', 'now')"
+    )
+    conn.commit()
+    conn.close()
+
+    db = Database(tmp_db)
+    await db.initialize()
+    conversation = await db.fetch_one(
+        "SELECT conversation_id FROM conversations WHERE conversation_id = 'existing'"
+    )
+    versions = await db.fetch_all(
+        "SELECT version FROM schema_migrations ORDER BY version"
+    )
+    tables = await asyncio_all_tables(db._conn)
+    assert conversation is not None
+    assert [row["version"] for row in versions] == [1, 2, 3, 4, 5]
+    assert "conversation_turns" in tables
+    assert "forget_confirmations" in tables
     await db.close()
 
 
@@ -90,10 +132,10 @@ async def test_restart_preserves_records(tmp_db: Path) -> None:
     # restart also preserves migration history (single row, correct checksum)
     conn = db2._conn
     count_and_checksum = conn.execute(
-        "SELECT COUNT(*) AS n, checksum FROM schema_migrations GROUP BY version"
+        "SELECT COUNT(*) AS n, checksum FROM schema_migrations GROUP BY version ORDER BY version"
     ).fetchall()
-    assert len(count_and_checksum) == 1
-    assert count_and_checksum[0]["checksum"] == file_checksum(MIGRATIONS[-1][2])
+    assert len(count_and_checksum) == len(MIGRATIONS)
+    assert count_and_checksum[-1]["checksum"] == file_checksum(MIGRATIONS[-1][2])
     await db2.close()
 
 
@@ -132,14 +174,16 @@ def test_tampered_migration_checksum_detected(
     from agent_roundtable.persistence import migrations as mig
 
     mig.create_schema_migrations_table(conn)
-    version, _name, sql = MIGRATIONS[-1]
+    version = MIGRATIONS[-1][0]
     from agent_roundtable.util import utc_now_iso
 
-    conn.executescript(sql)
-    conn.execute(
-        "INSERT INTO schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)",
-        (version, utc_now_iso(), "deadbeef"),  # forged checksum
-    )
+    for migration_version, _name, sql in MIGRATIONS:
+        conn.executescript(sql)
+        checksum = "deadbeef" if migration_version == version else file_checksum(sql)
+        conn.execute(
+            "INSERT INTO schema_migrations (version, applied_at, checksum) VALUES (?, ?, ?)",
+            (migration_version, utc_now_iso(), checksum),
+        )
     with pytest.raises(MigrationError):
         mig.apply_migrations_sync(conn, tmp_db)
     conn.close()
